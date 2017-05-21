@@ -19,7 +19,7 @@ AUTO_SCALING_GROUP=$(
 function get_mp4() {
   aws s3 ls s3://${MOVIES_BUCKET}/incoming/ \
     | grep -m1 \.mp4$ \
-    | grep -E -o [^\ ]+$^C
+    | grep -E -o [^\ ]+$
   return $?
 }
 
@@ -29,12 +29,14 @@ while true; do
     imdb_id="$(basename ${video} .mp4)"
     aws s3 cp s3://${MOVIES_BUCKET}/incoming/${video} /tmp/${video}
     aws s3 cp /tmp/${video} s3://${MOVIES_BUCKET}/${imdb_id}/video.mp4 \
-      && aws s3 rm s3://${MOVIES_BUCKET}/incoming/${video}
+      && aws s3 rm s3://${MOVIES_BUCKET}/incoming/${video} \
+      && rm /tmp/${video}
   else
     echo "Scaling down because there are no more videos to process"
     aws autoscaling update-auto-scaling-group \
       --auto-scaling-group-name ${AUTO_SCALING_GROUP} \
       --desired-capacity 0
+    exit 0
   fi
   unset video imdb_id
 done
