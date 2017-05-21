@@ -1,0 +1,212 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description : Process incoming videos
+
+Parameters:
+  InstanceType:
+    Description: The EC2 Instance type
+    Type: String
+    Default: t2.nano
+    AllowedValues:
+      - t2.nano
+      - t2.micro
+  BootstrapKey:
+    Description: The s3 key where the bootstrapper can be found
+    Type: String
+
+Mappings:
+  RegionMap:
+    us-east-1:
+      "64": ami-c58c1dd3
+    us-west-2:
+      "64": ami-4836a428
+    eu-west-1:
+      "64": ami-01ccc867
+    ap-southeast-2:
+      "64": ami-162c2575
+    ap-northeast-1:
+      "64": ami-923d12f5
+
+Resources:
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version : 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+            Action: "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        -
+          PolicyName: "s3strm-import-remuxer"
+          PolicyDocument:
+            Statement:
+              -
+                Effect: "Allow"
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:DescribeLogStreams"
+                  - "logs:PutLogEvents"
+                Resource: "arn:aws:logs:*:*:*"
+              -
+                Effect: Allow
+                Action: "s3:*"
+                Resource: !Join [ "", [ "arn:aws:s3:::", !ImportValue s3strm-movies-bucket, "/*" ] ]
+              -
+                Effect: Allow
+                Action: "s3:*"
+                Resource: !Join [ "", [ "arn:aws:s3:::", !ImportValue s3strm-settings-bucket, "/*" ] ]
+              -
+                Effect: Allow
+                Action: "cloudformation:ListExports"
+                Resource: "*"
+              -
+                Effect: Allow
+                Action: "cloudformation:describeStacks"
+                Resource: "*"
+              -
+                Effect: Allow
+                Action: "autoscaling:UpdateAutoScalingGroup"
+                Resource: "*"
+
+  InstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Roles:
+        - !Ref Role
+
+  IncomingRemuxerVPC:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      CidrBlock: 172.16.33.0/24
+
+  IncomingRemuxerSubnet:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      CidrBlock: 172.16.33.0/27
+      VpcId: !Ref IncomingRemuxerVPC
+
+  IncomingRemuxerInternetGatewayAttachment:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties:
+      InternetGatewayId: !Ref IncomingRemuxerInternetGateway
+      VpcId: !Ref IncomingRemuxerVPC
+
+  IncomingRemuxerInternetGateway:
+    Type: "AWS::EC2::InternetGateway"
+
+  IncomingRemuxerRouteTable:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref IncomingRemuxerVPC
+
+  IncomingRemuxerSubnetRouteTable:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      SubnetId: !Ref IncomingRemuxerSubnet
+      RouteTableId: !Ref IncomingRemuxerRouteTable
+
+  IncomingRemuxerRoute:
+    Type: "AWS::EC2::Route"
+    Properties:
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref IncomingRemuxerInternetGateway
+      RouteTableId: !Ref IncomingRemuxerRouteTable
+
+  IncomingRemuxerSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: Group for the IncomingRemuxer EC2 Instance
+      SecurityGroupEgress:
+        -
+          CidrIp: "0.0.0.0/0"
+          FromPort: 1
+          IpProtocol: tcp
+          ToPort: 65535
+        -
+          CidrIp: "0.0.0.0/0"
+          FromPort: 1
+          IpProtocol: udp
+          ToPort: 65535
+        -
+          CidrIp: "0.0.0.0/0"
+          FromPort: -1
+          IpProtocol: icmp
+          ToPort: -1
+      SecurityGroupIngress:
+        -
+          CidrIp: "0.0.0.0/0"
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
+      VpcId: !Ref IncomingRemuxerVPC
+
+  IncomingRemuxerLaunchConfiguration:
+    Type: "AWS::AutoScaling::LaunchConfiguration"
+    Properties:
+      AssociatePublicIpAddress: true
+      IamInstanceProfile: !Ref InstanceProfile
+      ImageId: !FindInMap [ RegionMap, !Ref "AWS::Region", "64" ]
+      KeyName: s3strm
+      SecurityGroups:
+        - !Ref IncomingRemuxerSecurityGroup
+      InstanceMonitoring: false
+      InstanceType: !Ref InstanceType
+      UserData:
+        "Fn::Base64": |
+          #cloud-config
+          write_files:
+            - content: |
+                #!/bin/bash
+                AZ=$(curl 169.254.169.254/latest/meta-data/placement/availability-zone/)
+                export AWS_DEFAULT_REGION=${AZ::-1}
+
+                BOOTSTRAP_FILE=$(
+                  aws cloudformation describe-stacks \
+                    --stack-name s3strm-incoming-remuxer \
+                    --query 'Stacks[].Outputs[?OutputKey == `BootstrapKey`].OutputValue' \
+                    --output text
+                )
+                SETTINGS_BUCKET=$(
+                  aws cloudformation list-exports \
+                    --query 'Exports[?Name==`s3strm-settings-bucket`].Value' \
+                    --output text
+                )
+
+                aws s3 cp s3://${SETTINGS_BUCKET}/${BOOTSTRAP_FILE} /tmp/bootstrap.tar.bz2
+                mkdir -p /opt/bootstrap
+                (
+                  cd /opt/bootstrap
+                  tar jxvf /tmp/bootstrap.tar.bz2
+                  chmod 755 run.sh &> /dev/null
+                  chmod 755 bin/* &> /dev/null
+                )
+              path: /usr/local/bin/kickstart
+              permissions: '0755'
+          runcmd:
+              - [ '/usr/local/bin/kickstart' ]
+              - [ '/opt/bootstrap/run.sh' ]
+
+  IncomingRemuxerASG:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    Properties:
+      DesiredCapacity: 0
+      LaunchConfigurationName: !Ref IncomingRemuxerLaunchConfiguration
+      MaxSize: 1
+      MinSize: 0
+      TerminationPolicies:
+        - ClosestToNextInstanceHour
+      VPCZoneIdentifier:
+        - !Ref IncomingRemuxerSubnet
+
+Outputs:
+  BootstrapKey:
+    Value: !Ref BootstrapKey
+
+  AutoScalingGroup:
+    Value: !Ref IncomingRemuxerASG
