@@ -30,8 +30,14 @@ function download() {
 }
 
 function upload() {
-  aws s3 cp "/tmp/${video}" "s3://${MOVIES_BUCKET}/${imdb_id}/video.mp4" \
-    && aws s3 rm "s3://${MOVIES_BUCKET}/incoming/${video}"
+  local imdb_id
+  imdb_id="$(basename "$1" .mp4)"
+  aws s3 cp "/tmp/$1" "s3://${MOVIES_BUCKET}/${imdb_id}/video.mp4" \
+    && aws s3 rm "s3://${MOVIES_BUCKET}/incoming/$1"
+}
+
+function remux() {
+  $(dirname "$0")/remuxer "$1"
 }
 
 function cleanup() {
@@ -54,8 +60,10 @@ while true; do
   if [[ $? -eq 0 ]]; then
     video="${imdb_id}.mp4"
     upload "${video}"
-    find /tmp -iname "${imdb_id}.*" -delete
+  else
+    echo "failed to remux ${video}" >&2
   fi
 
+  find /tmp -iname "${imdb_id}.*" -delete
   unset video imdb_id
 done
