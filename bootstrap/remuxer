@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+INPUT_FILE=$1
+INPUT_EXTENSION=$(echo "${INPUT_FILE}" | grep -E -o "\.[^\.]+$")
+OUTPUT_FILE=$(basename "${INPUT_FILE}" "${INPUT_EXTENSION}")
+MAX_SIZE_DIFFERENCE=10      # percentage difference in size before output is discarded as incomplete
+
+_usage() {
+  echo "$0 <movie_file>"
+}
+
+_bytes_of_file() {
+  gstat "$1" | awk '/Size:/ { print $2 }'
+}
+
+_max_size_deviation() {
+  local input_size
+  input_size=$(_bytes_of_file "${INPUT_FILE}")
+  echo $(( input_size * MAX_SIZE_DIFFERENCE / 100 ))
+}
+
+_size_difference() {
+  local size1
+  local size2
+  local difference
+  size1=$(_bytes_of_file "${INPUT_FILE}")
+  size2=$(_bytes_of_file "${OUTPUT_FILE}")
+  difference=$(( size1 - size2 ))
+  if [[ ${difference} -lt 0 ]]; then
+    echo $(( difference * -1 ))
+  else
+    echo ${difference}
+  fi
+}
+
+[[ $# -ne 1 ]] && _usage && exit 1
+
+ffmpeg -y             \
+  -fflags +genpts     \
+  -i "${INPUT_FILE}"  \
+  -c copy             \
+  "${OUTPUT_FILE}"
+
+if [[ $(_size_difference) -gt $(_max_size_deviation) ]]; then
+  echo "${OUTPUT_FILE} deviates in size from ${INPUT_FILE} by more than ${MAX_SIZE_DIFFERENCE}%" >&2
+  rm -f "${OUTPUT_FILE}"
+  exit 1
+fi
