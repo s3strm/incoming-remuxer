@@ -9,7 +9,7 @@ _usage() {
 }
 
 _bytes_of_file() {
-  gstat "$1" | awk '/Size:/ { print $2 }'
+  stat "$1" | awk '/Size:/ { print $2 }'
 }
 
 _max_size_deviation() {
