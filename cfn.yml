@@ -191,8 +191,8 @@ Resources:
           runcmd:
               - [ 'wget', 'https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-64bit-static.tar.xz', '-O', '/tmp/ffmpeg-release-64bit-static.tar.xz' ]
               - [ 'tar', 'xf', '/tmp/ffmpeg-release-64bit-static.tar.xz', '-C', '/tmp' ]
-              - [ 'mv', '/tmp/ffmpeg-3.3.1-64bit-static/ffmpeg', '/usr/local/ffmpeg' ]
-              - [ 'mv', '/tmp/ffmpeg-3.3.1-64bit-static/ffprobe', '/usr/local/ffprobe' ]
+              - [ 'cp', '/tmp/ffmpeg-3.3.1-64bit-static/ffmpeg', '/usr/local/bin/ffmpeg' ]
+              - [ 'cp', '/tmp/ffmpeg-3.3.1-64bit-static/ffprobe', '/usr/local/bin/ffprobe' ]
               - [ '/usr/local/bin/kickstart' ]
               - [ '/opt/bootstrap/run.sh' ]
 
