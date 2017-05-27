@@ -17,6 +17,7 @@ deploy: upload
 	  --template-body "${STACK_TEMPLATE}"                                   \
 	  --parameters                                                          \
 	    ParameterKey=BootstrapKey,ParameterValue=${BOOTSTRAP_KEY} 			\
+	    ParameterKey=InstanceType,ParameterValue="r4.xlarge" 				\
 	  --capabilities CAPABILITY_IAM                                         \
 	  2>&1
 	@aws cloudformation wait stack-${ACTION}-complete \

@@ -26,18 +26,18 @@ function find_video() {
 }
 
 function download() {
-  aws s3 cp "s3://${MOVIES_BUCKET}/incoming/$1" "/tmp/$1"
+  aws s3 cp "s3://${MOVIES_BUCKET}/incoming/$1" "/dev/shm/$1"
 }
 
 function upload() {
   local imdb_id
   imdb_id="$(basename "$1" .mp4)"
-  aws s3 cp "/tmp/$1" "s3://${MOVIES_BUCKET}/${imdb_id}/video.mp4" \
-    && aws s3 rm "s3://${MOVIES_BUCKET}/incoming/$1"
+  aws s3 cp "/dev/shm/$1" "s3://${MOVIES_BUCKET}/${imdb_id}/video.mp4"
+  return $?
 }
 
 function remux() {
-  $(dirname "$0")/remuxer "$1"
+  $(dirname "$0")/remuxer "/dev/shm/$1"
 }
 
 function cleanup() {
@@ -58,12 +58,16 @@ while true; do
   download "${video}"
   remux "${video}"
   if [[ $? -eq 0 ]]; then
+    original_video=${video}
     video="${imdb_id}.mp4"
-    upload "${video}"
+    upload "${video}" \
+      && aws s3 rm "s3://${MOVIES_BUCKET}/incoming/${original_video}"
   else
     echo "failed to remux ${video}" >&2
+    aws s3 cp /dev/shm/${video} "s3://${MOVIES_BUCKET}/incoming/dead_letters/${video}"
+    aws s3 rm "s3://${MOVIES_BUCKET}/incoming/${video}"
   fi
 
-  find /tmp -iname "${imdb_id}.*" -delete
+  find /dev/shm -iname "${imdb_id}.*" -delete
   unset video imdb_id
 done
