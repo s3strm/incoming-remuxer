@@ -9,6 +9,8 @@ Parameters:
     AllowedValues:
       - t2.nano
       - t2.micro
+      - r4.large
+      - r4.xlarge
   BootstrapKey:
     Description: The s3 key where the bootstrapper can be found
     Type: String
