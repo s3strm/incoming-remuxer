@@ -19,8 +19,8 @@ AUTO_SCALING_GROUP=$(
 
 function find_video() {
   # Should use a queue for this because then dead-letters can be handled
-  aws s3 ls "s3://${MOVIES_BUCKET}/incoming/" \
-    | grep -m1 \.mp4$ \
+  aws s3 ls "s3://${MOVIES_BUCKET}/incoming/" 2> /dev/null \
+    | grep -m1 -e "\.mp4$" -e "\.mkv$" -e "\.avi$" \
     | grep -E -o "[^\ ]+$"
   return $?
 }
