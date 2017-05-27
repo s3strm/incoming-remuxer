@@ -51,9 +51,11 @@ while true; do
   imdb_id="$(basename "${video}" "${video_extension}")"
   download "${video}"
   remux "${video}"
-  video="${imdb_id}.mp4"
-  upload "${video}"
-  find /tmp -iname "${imdb_id}.*" -delete
+  if [[ $? -eq 0 ]]; then
+    video="${imdb_id}.mp4"
+    upload "${video}"
+    find /tmp -iname "${imdb_id}.*" -delete
+  fi
 
   unset video imdb_id
 done
