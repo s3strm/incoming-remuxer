@@ -33,6 +33,7 @@ _size_difference() {
 }
 
 [[ $# -ne 1 ]] && _usage && exit 1
+[[ ${INPUT_EXTENSION} == ".mp4" ]] && exit 0
 
 ffmpeg -y             \
   -fflags +genpts     \
