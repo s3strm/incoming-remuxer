@@ -42,9 +42,9 @@ function remux() {
 
 function cleanup() {
   echo "Scaling down because there are no more videos to process"
-  #aws autoscaling update-auto-scaling-group \
-  #  --auto-scaling-group-name "${AUTO_SCALING_GROUP}" \
-  #  --desired-capacity 0
+  aws autoscaling update-auto-scaling-group \
+    --auto-scaling-group-name "${AUTO_SCALING_GROUP}" \
+    --desired-capacity 0
 }
 
 trap '{ cleanup; }' EXIT
