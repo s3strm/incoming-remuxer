@@ -3,7 +3,7 @@ export PATH="/usr/local/bin:${PATH}"
 INPUT_FILE=$1
 INPUT_EXTENSION=$(echo "${INPUT_FILE}" | grep -E -o "\.[^\.]+$")
 OUTPUT_FILE="/dev/shm/$(basename "${INPUT_FILE}" "${INPUT_EXTENSION}").mp4"
-MAX_SIZE_DIFFERENCE=10      # percentage difference in size before output is discarded as incomplete
+MAX_SIZE_DIFFERENCE=15      # percentage difference in size before output is discarded as incomplete
 
 _usage() {
   echo "$0 <movie_file>"
