@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+export PATH="/usr/local/bin:${PATH}"
 INPUT_FILE=$1
 INPUT_EXTENSION=$(echo "${INPUT_FILE}" | grep -E -o "\.[^\.]+$")
 OUTPUT_FILE="/dev/shm/$(basename "${INPUT_FILE}" "${INPUT_EXTENSION}").mp4"
