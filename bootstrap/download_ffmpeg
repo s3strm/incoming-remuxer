@@ -1,0 +1,14 @@
+#!/bin/bash
+AZ=$(curl 169.254.169.254/latest/meta-data/placement/availability-zone/)
+export AWS_DEFAULT_REGION=${AZ::-1}
+
+SETTINGS_BUCKET=$(
+  aws cloudformation list-exports \
+  --query 'Exports[?Name==`s3strm-settings-bucket`].Value' \
+  --output text
+)
+
+aws s3 cp s3://${SETTINGS_BUCKET}/tarballs/ffmpeg-release-64bit-static.tar.xz /tmp
+tar xf /tmp/ffmpeg-release-64bit-static.tar.xz -C /tmp
+cp /tmp/ffmpeg-3.3.2-64bit-static/ffmpeg /usr/local/bin/ffmpeg
+cp /tmp/ffmpeg-3.3.2-64bit-static/ffprobe /usr/local/bin/ffprobe

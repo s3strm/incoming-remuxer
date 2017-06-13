@@ -50,6 +50,9 @@ function cleanup() {
 
 trap '{ cleanup; }' EXIT
 
+which ffmpeg || $(dirname "$0")/download_ffmpeg
+which ffmpeg || sleep 1200
+
 while true; do
   video="$(find_video)"
   [[ -z ${video} ]] && exit 0
