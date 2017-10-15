@@ -18,6 +18,14 @@ AUTO_SCALING_GROUP=$(
     --output text
 )
 
+#function find_tv_imdb_id() {
+#  # Should use a queue for this because then dead-letters can be handled
+#  aws s3 ls "s3://${MOVIES_BUCKET}/incoming/" 2> /dev/null \
+#    | grep -m1 -E "tt[0-9]{7}/$" -e "\.mkv$" -e "\.avi$" \
+#    | grep -E -o tt[0-9]+
+#  return $?
+#}
+
 function find_video() {
   dir=$1
   # Should use a queue for this because then dead-letters can be handled
@@ -56,6 +64,7 @@ trap '{ cleanup; }' EXIT
 which ffmpeg || $(dirname "$0")/download_ffmpeg
 which ffmpeg || sleep 1200
 
+### MOVIE #####
 while true; do
   video="$(find_video)"
   [[ -z ${video} ]] && exit 0
@@ -78,3 +87,28 @@ while true; do
   find /dev/shm -iname "${imdb_id}.*" -delete
   unset video imdb_id
 done
+
+#### TV ######
+#while true; do
+#  tv_imdb_id="$(find_tv_imdb_id)"
+#  while true; do
+#    video=$(find_video "${tv_imdb_id}/"
+#    [[ -z ${video} ]] && continue
+#
+#    download "${tv_imdb_id}/${video}"
+#    remux "${tv_imdb_id}/${video}"
+#    if [[ $? -eq 0 ]]; then
+#      original_video=${video}
+#      video="${imdb_id}.mp4"
+#      upload "${video}" \
+#        && aws s3 rm "s3://${MOVIES_BUCKET}/incoming/${original_video}"
+#    else
+#      echo "failed to remux ${video}" >&2
+#      aws s3 cp /dev/shm/${video} "s3://${MOVIES_BUCKET}/incoming/dead_letters/${video}"
+#      aws s3 rm "s3://${MOVIES_BUCKET}/incoming/${video}"
+#    fi
+#
+#    find /dev/shm -iname "${imdb_id}.*" -delete
+#    unset video imdb_id
+#  done
+#done
