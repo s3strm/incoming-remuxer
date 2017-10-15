@@ -27,13 +27,15 @@ function find_video() {
 }
 
 function download() {
-  aws s3 cp "s3://${MOVIES_BUCKET}/incoming/$1" "/dev/shm/$1"
+  echo "downloading s3://${MOVIES_BUCKET}/incoming/$1"
+  aws s3 cp "s3://${MOVIES_BUCKET}/incoming/$1" "/dev/shm/$1" > /dev/null
 }
 
 function upload() {
   local imdb_id
   imdb_id="$(basename "$1" .mp4)"
-  aws s3 cp "/dev/shm/$1" "s3://${MOVIES_BUCKET}/${imdb_id}/video.mp4"
+  echo "uploading s3://${MOVIES_BUCKET}/${imdb_id}/video.mp4"
+  aws s3 cp "/dev/shm/$1" "s3://${MOVIES_BUCKET}/${imdb_id}/video.mp4" > /dev/null
   return $?
 }
 
