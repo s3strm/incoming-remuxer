@@ -18,9 +18,10 @@ AUTO_SCALING_GROUP=$(
     --output text
 )
 
-function find_movie() {
+function find_video() {
+  dir=$1
   # Should use a queue for this because then dead-letters can be handled
-  aws s3 ls "s3://${MOVIES_BUCKET}/incoming/" 2> /dev/null \
+  aws s3 ls "s3://${MOVIES_BUCKET}/incoming/${dir}" 2> /dev/null \
     | grep -m1 -e "\.mp4$" -e "\.mkv$" -e "\.avi$" \
     | grep -E -o "[^\ ]+$"
   return $?
@@ -56,7 +57,7 @@ which ffmpeg || $(dirname "$0")/download_ffmpeg
 which ffmpeg || sleep 1200
 
 while true; do
-  video="$(find_movie)"
+  video="$(find_video)"
   [[ -z ${video} ]] && exit 0
 
   video_extension=$(echo "${video}" | grep -E -o "\.[^\.]+$")
