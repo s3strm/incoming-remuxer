@@ -44,7 +44,7 @@ function upload() {
   local imdb_id
   imdb_id="$(basename "$1" .mp4)"
   echo "uploading s3://${MOVIES_BUCKET}/${imdb_id}/video.mp4"
-  aws s3 cp --storage-class REDUCED_REDUNDANCY \
+  aws s3 cp --storage-class STANDARD_IA \
     "/dev/shm/$1" \
     "s3://${MOVIES_BUCKET}/${imdb_id}/video.mp4" \
     > /dev/null
