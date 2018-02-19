@@ -82,7 +82,7 @@ which ffmpeg || $(dirname "$0")/download_ffmpeg
 which ffmpeg || sleep 1200
 
 ### MOVIE #####
-for i in $(seq 0 100); do
+for i in $(seq 0 250); do
   video="$(find_video)"
   if [[ ! -z ${video} ]]; then
     video_extension=$(echo "${video}" | grep -E -o "\.[^\.]+$")
