@@ -43,6 +43,14 @@ function find_subtitle() {
   return $?
 }
 
+function find_poster() {
+  dir=$1
+  aws s3 ls "s3://${MOVIES_BUCKET}/incoming/${dir}" 2> /dev/null \
+    | grep -m1 -e "\.jpg$" \
+    | grep -E -o "[^\ ]+$"
+  return $?
+}
+
 function download() {
   echo "downloading s3://${MOVIES_BUCKET}/incoming/$1"
   aws s3 cp "s3://${MOVIES_BUCKET}/incoming/$1" "/dev/shm/$1" > /dev/null
@@ -138,6 +146,21 @@ for i in $(seq 0 250); do
 
     find /dev/shm -iname "${imdb_id}*" -delete
     unset subtitle imdb_id input_video input_sub output_file
+  fi
+
+  # new poster
+  poster="$(find_poster)"
+  if [[ ! -z ${poster} ]]; then
+    imdb_id="$(basename "${poster}" ".jpg")"
+    poster_file="/dev/shm/${poster}"
+
+    echo "Adding custom poster for ${imdb_id}"
+    aws s3 cp "s3://${MOVIES_BUCKET}/incoming/${poster}" "${poster_file}" > /dev/null
+    aws s3 cp "${poster_file}" "s3://${MOVIES_BUCKET}/${imdb_id}/poster-custom.jpg" > /dev/null
+    aws s3 rm "s3://${MOVIES_BUCKET}/incoming/${poster}"
+
+    find /dev/shm -iname "${imdb_id}*" -delete
+    unset imdb_id poster_file
   fi
 
   echo "sleeping before another iteration"
